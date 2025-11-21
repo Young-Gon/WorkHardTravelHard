@@ -1,8 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { theme } from './colors';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontAwesome } from '@expo/vector-icons';
 
 export default function App() {
   const [working, setWorking] = useState(true);
@@ -37,6 +38,25 @@ export default function App() {
     }
   }
 
+  function deleteToDo(id: number) {
+    Alert.alert("Delete To Do", "Are you sure?", [
+      {
+        text: "Cancel",
+        style: "cancel"
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          const newToDos = {...toDos};
+          delete newToDos[id];
+          setToDos(newToDos);
+          saveToDos(newToDos);
+        }
+      }
+    ]);
+  }
+
   useEffect(() => {
     loadToDos();
   }, []);
@@ -63,8 +83,11 @@ export default function App() {
       <ScrollView>
         {Object.entries(toDos).map(([key, value]) => 
           value.work === working && (
-            <View key={key} style={{backgroundColor: theme.grey, padding: 20, borderRadius: 10, marginBottom: 10}}>
+            <View key={key} style={{backgroundColor: theme.grey, padding: 20, borderRadius: 10, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',}}>
               <Text style={{color: "white", fontSize: 24}}>{value.text}</Text>
+              <TouchableOpacity onPress={() => deleteToDo(Number(key))}>
+                <FontAwesome name="trash-o" size={24} color="white" />
+              </TouchableOpacity>
             </View>
           )
         )}
