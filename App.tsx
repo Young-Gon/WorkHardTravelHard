@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { theme } from './colors';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function App() {
@@ -28,6 +28,18 @@ export default function App() {
   async function saveToDos(toSave: {[key: number]: {text: string, work:boolean}}) {
     await AsyncStorage.setItem("toDos", JSON.stringify(toSave));
   }
+
+  async function loadToDos() {
+    const toDos = await AsyncStorage.getItem("toDos");
+    console.log("Loaded ToDos: ", toDos);
+    if(toDos!== null) {
+      setToDos(JSON.parse(toDos));
+    }
+  }
+
+  useEffect(() => {
+    loadToDos();
+  }, []);
 
   return (
     <View style={styles.container}>
