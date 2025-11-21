@@ -3,12 +3,19 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { theme } from './colors';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FontAwesome } from '@expo/vector-icons';
+import ToDoItem from './components/ToDoItem';
 
 export default function App() {
+  type ToDo = {
+    text: string;
+    work: boolean;
+    finished: boolean;
+  };
   const [working, setWorking] = useState(true);
   const [input, setInput] = useState("");
-  const [toDos, setToDos] = useState<{[key: number]: {text: string, work:boolean}}>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [toDos, setToDos] = useState<{ [key: string]: ToDo }>({});
 
   function onTabClick(tab: boolean) {
     setWorking(tab);
@@ -16,29 +23,29 @@ export default function App() {
   }
 
   function addToDo(): void {
-    if(input === "") {
+    if (input === "") {
       return;
     }
-    const id = Date.now();
-    const newToDos = {...toDos, [id]: {text: input, work: working}};
+    const id = Date.now().toString();
+    const newToDos = { ...toDos, [id]: { text: input, work: working, finished: false } };
     setToDos(newToDos);
     saveToDos(newToDos);
     setInput("");
   }
 
-  async function saveToDos(toSave: {[key: number]: {text: string, work:boolean}}) {
+  async function saveToDos(toSave: { [key: string]: ToDo }) {
     await AsyncStorage.setItem("toDos", JSON.stringify(toSave));
   }
 
   async function loadToDos() {
     const toDos = await AsyncStorage.getItem("toDos");
     console.log("Loaded ToDos: ", toDos);
-    if(toDos!== null) {
+    if (toDos !== null) {
       setToDos(JSON.parse(toDos));
     }
   }
 
-  function deleteToDo(id: number) {
+  function deleteToDo(id: string) {
     Alert.alert("Delete To Do", "Are you sure?", [
       {
         text: "Cancel",
@@ -48,7 +55,7 @@ export default function App() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          const newToDos = {...toDos};
+          const newToDos = { ...toDos };
           delete newToDos[id];
           setToDos(newToDos);
           saveToDos(newToDos);
@@ -66,10 +73,10 @@ export default function App() {
       <StatusBar style="auto" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => onTabClick(true)}>
-          <Text style={{...styles.btnText, color: working?"white":theme.grey}}>Work</Text>
+          <Text style={{ ...styles.btnText, color: working ? "white" : theme.grey }}>Work</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => onTabClick(false)}>
-          <Text style={{...styles.btnText, color: !working?"white":theme.grey}}>Travel</Text>
+          <Text style={{ ...styles.btnText, color: !working ? "white" : theme.grey }}>Travel</Text>
         </TouchableOpacity>
       </View>
       <TextInput
@@ -81,14 +88,39 @@ export default function App() {
         style={styles.input}
       />
       <ScrollView>
-        {Object.entries(toDos).map(([key, value]) => 
+        {Object.entries(toDos).map(([key, value]) =>
           value.work === working && (
-            <View key={key} style={{backgroundColor: theme.grey, padding: 20, borderRadius: 10, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',}}>
-              <Text style={{color: "white", fontSize: 24}}>{value.text}</Text>
-              <TouchableOpacity onPress={() => deleteToDo(Number(key))}>
-                <FontAwesome name="trash-o" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
+            <ToDoItem
+              key={key}
+              id={key}
+              text={value.text}
+              finished={value.finished}
+              onFinished={(newValue) => {
+                const newToDos = { ...toDos, [key]: { ...toDos[key], finished: newValue } };
+                setToDos(newToDos);
+                saveToDos(newToDos);
+              }}
+              onEdit={() => {
+                setEditingId((prev) => {
+                  if (prev === key){
+                    loadToDos();
+                    return null;
+                  }
+                  return key;
+                }); /* setInput(value.text);  */
+              }}
+              editting={editingId === key}
+              onChangeText={(newText) => {
+                const newToDos = { ...toDos, [key]: { ...toDos[key], text: newText } };
+                setToDos(newToDos);
+                // saveToDos(newToDos);
+              }}
+              onSubmitEditing={() => {
+                setEditingId(null);
+                saveToDos(toDos);
+              }}
+              onDelete={() => deleteToDo(key)}
+            />
           )
         )}
       </ScrollView>
@@ -102,17 +134,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.background,
     paddingHorizontal: 20,
   },
-  header:{
+  header: {
     flexDirection: 'row',
     marginTop: 100,
     justifyContent: 'space-between',
   }
-  ,btnText: {
+  , btnText: {
+    color: 'white',
     fontSize: 44,
     marginHorizontal: 12,
     fontWeight: '600',
   }
-  ,input: {
+  , input: {
     backgroundColor: 'white',
     paddingVertical: 15,
     paddingHorizontal: 20,
